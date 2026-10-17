@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Виртуальные окружения
+.venv/
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Секреты
+configs/settings.json
+*.key
+*.pem
+secrets.py
+
+# TUR55
+inputfiles/*.enc
+outputfiles/*.enc
