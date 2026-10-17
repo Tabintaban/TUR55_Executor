@@ -31,3 +31,6 @@ secrets.py
 # TUR55
 inputfiles/*.enc
 outputfiles/*.enc
+
+# Логи TUR55_Executor
+logs/
