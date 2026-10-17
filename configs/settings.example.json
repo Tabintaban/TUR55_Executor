@@ -1,0 +1,41 @@
+﻿{
+  "executor": {
+    "name": "TUR55_Executor",
+    "version": "0.1.0",
+    "device_id": "esp32_001"
+  },
+  "event": {
+    "blockchain": "ethereum",
+    "rpc_url": "https://sepolia.infura.io/v3/YOUR_KEY",
+    "contract_address": "0x0000000000000000000000000000000000000000",
+    "event_name": "ExecutorTriggered",
+    "poll_interval_sec": 5,
+    "use_mock": true
+  },
+  "delivery": {
+    "transport": "both",
+    "mqtt": {
+      "broker": "broker.hivemq.com",
+      "port": 1883,
+      "topic": "tur55/device/esp32_001",
+      "qos": 1,
+      "retain": false
+    },
+    "file": {
+      "output_dir": "outputfiles/",
+      "filename": "program.enc"
+    }
+  },
+  "keys": {
+    "esp32_public_key": "keys/esp32_public_key.pem",
+    "executor_private_key": "keys/executor_private_key.pem"
+  },
+  "inputfiles": {
+    "template": "inputfiles/unlock.py",
+    "payload_marker": "# @@TUR55_PAYLOAD@@"
+  },
+  "logging": {
+    "level": "INFO",
+    "file": "logs/executor.log"
+  }
+}
