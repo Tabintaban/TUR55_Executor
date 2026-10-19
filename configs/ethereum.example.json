@@ -39,7 +39,7 @@
     "executor_private_key": "keys/executor_private_key.pem"
   },
   "inputfiles": {
-    "template": "inputfiles/unlock.py",
+    "template": "inputfiles/example_led.py",
     "payload_marker": "# @@TUR55_PAYLOAD@@"
   },
   "logging": {

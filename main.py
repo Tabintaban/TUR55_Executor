@@ -81,17 +81,41 @@ def load_config(path: Path) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def cmd_build(config: dict[str, Any], verbose: bool) -> int:
-    """build — собрать пакет TUR55 из события.
+    """build — собрать готовый скрипт для ESP32 (без шифрования и доставки).
 
-    TODO (шаг 4):
-      1. event_listener.py  — получить событие ExecutorTriggered
-      2. script_template.py — встроить JSON-конверт (3.2) в скрипт (3.3)
-      3. packet_builder.py  — собрать пакет TUR55 (3.4) через Layers/Executor/tur55_packet.py
+    Шаги:
+      1. Получить одно событие ExecutorTriggered из Layers/Event/ethereum.py.
+      2. Прочитать шаблон из config["inputfiles"]["template"].
+      3. Встроить payload в шаблон (Layers/Executor/script_template.py).
+      4. Напечатать готовый скрипт в stdout.
     """
+    from Layers.Event.ethereum import listen
+    from Layers.Executor.script_template import build_script
+
+    executor = config["executor"]
     if verbose:
-        executor = config["executor"]
         print(f"[build] config: executor={executor.get('name')} version={executor.get('version')}", file=sys.stderr)
-    raise NotImplementedError("build: реализация — шаг 4 (Layers/Executor/*)")
+
+    # 1. Одно событие (мок — первое; реальный Ethereum — первое из потока)
+    event = next(iter(listen(config, verbose=verbose)))
+    if verbose:
+        print(f"[build] event: user={event['user_wallet'][:10]}... amount={event['amount']}", file=sys.stderr)
+
+    # 2. Шаблон из inputfiles/
+    template_rel = config["inputfiles"]["template"]
+    template_path = REPO_ROOT / template_rel
+    if not template_path.exists():
+        print(f"[ERROR] Шаблон не найден: {template_path}", file=sys.stderr)
+        return 1
+    template_text = template_path.read_text(encoding="utf-8")
+
+    # 3. Встроить payload
+    marker = config["inputfiles"]["payload_marker"]
+    script = build_script(template_text, event, marker)
+
+    # 4. Напечатать готовый скрипт
+    print(script)
+    return 0
 
 
 def cmd_send(config: dict[str, Any], verbose: bool) -> int:
