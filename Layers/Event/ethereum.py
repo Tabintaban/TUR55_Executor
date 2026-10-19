@@ -68,6 +68,7 @@ def _listen_mock(config: dict[str, Any], verbose: bool) -> Iterator[dict[str, An
     index = 0
     while max_events is None or index < max_events:
         wallet_hex = "".join(rng.choice("0123456789abcdef") for _ in range(40))
+        custom_data = mock_cfg.get("custom_data", {"duration_sec": 120})
         event = {
             "user_wallet": "0x" + wallet_hex,
             "amount": rng.randint(1, 100),
@@ -78,6 +79,7 @@ def _listen_mock(config: dict[str, Any], verbose: bool) -> Iterator[dict[str, An
                 "source": "mock",
                 "event_index": index,
             },
+            "custom_data": custom_data,
         }
 
         if verbose:

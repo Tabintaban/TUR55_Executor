@@ -10,7 +10,15 @@
     "contract_address": "0x0000000000000000000000000000000000000000",
     "event_name": "ExecutorTriggered",
     "poll_interval_sec": 5,
-    "use_mock": true
+    "use_mock": true,
+    "mock": {
+      "max_events": 3,
+      "interval_sec": 0.0,
+      "seed": 0,
+      "custom_data": {
+        "duration_sec": 120
+      }
+    }
   },
   "delivery": {
     "transport": "both",
