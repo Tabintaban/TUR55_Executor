@@ -1,4 +1,4 @@
-# Python
+﻿# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -23,7 +23,7 @@ ENV/
 *.swo
 
 # Секреты
-configs/settings.json
+configs/ethereum.json
 *.key
 *.pem
 secrets.py

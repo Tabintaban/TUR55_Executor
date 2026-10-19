@@ -30,8 +30,8 @@ from typing import Any
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parent
-DEFAULT_CONFIG = REPO_ROOT / "configs" / "settings.json"
-EXAMPLE_CONFIG = REPO_ROOT / "configs" / "settings.example.json"
+DEFAULT_CONFIG = REPO_ROOT / "configs" / "ethereum.json"
+EXAMPLE_CONFIG = REPO_ROOT / "configs" / "ethereum.example.json"
 
 REQUIRED_SECTIONS = ("executor", "event", "delivery", "keys")
 
@@ -59,6 +59,18 @@ def load_config(path: Path) -> dict[str, Any]:
     missing = [s for s in REQUIRED_SECTIONS if s not in config]
     if missing:
         print(f"[ERROR] В {path} отсутствуют обязательные секции: {missing}", file=sys.stderr)
+        sys.exit(1)
+
+    # MVP: имя файла конфига должно соответствовать event.blockchain.
+    # "ethereum.json" / "ethereum.example.json" → ожидаем "ethereum".
+    expected_blockchain = path.name.split(".")[0]
+    actual_blockchain = config.get("event", {}).get("blockchain")
+    if actual_blockchain != expected_blockchain:
+        print(
+            f"[ERROR] Конфиг {path.name}: event.blockchain={actual_blockchain!r}, "
+            f"ожидалось {expected_blockchain!r} (по имени файла).",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     return config
