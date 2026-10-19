@@ -107,17 +107,21 @@ def cmd_send(config: dict[str, Any], verbose: bool) -> int:
 
 
 def cmd_listen(config: dict[str, Any], verbose: bool) -> int:
-    """listen — слушать блокчейн (мок / web3.py).
+    """listen — слушать Ethereum (мок / web3.py).
 
-    TODO (шаг 4):
-      event_listener.py — мок при config['event']['use_mock']=true,
-                          иначе web3.py по config['event']['rpc_url'] + contract_address.
+    Печатает события ExecutorTriggered в формате JSONL (одно событие = одна строка).
+    Мок-режим ограничен config["event"]["mock"]["max_events"] (по умолчанию 3).
     """
+    from Layers.Event.ethereum import listen
+
     event = config["event"]
     mock = event.get("use_mock", True)
     if verbose:
         print(f"[listen] blockchain={event.get('blockchain')} use_mock={mock}", file=sys.stderr)
-    raise NotImplementedError("listen: реализация — шаг 4 (Layers/Executor/event_listener.py)")
+
+    for ev in listen(config, verbose=verbose):
+        print(json.dumps(ev, ensure_ascii=False))
+    return 0
 
 
 # ---------------------------------------------------------------------------
