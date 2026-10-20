@@ -1,9 +1,9 @@
-# DECISIONS_LOG — TUR55_Executor
+﻿# DECISIONS_LOG — TUR55_Executor
 
 Журнал зафиксированных решений. Аналог `DECISIONS_LOG.md` в ESP32_Python_FUEL.
 
 **Дата создания:** 2026-10-20
-**Всего решений:** 8
+**Всего решений:** 12
 
 ---
 
@@ -70,7 +70,7 @@
 
 **Следствия:**
 - `Layers/Delivery/MQTT.py` — `publish(packet_bytes, config)`.
-- `Layers/Delivery/file.py` — `save(packet_bytes, config)`.
+- `Layers/Delivery/FILE.py` — `save(packet_bytes, config)`.
 - `Layers/Executor/delivery.py` — единый `send(packet, config)`.
 
 ---
@@ -149,8 +149,90 @@
 
 ---
 
+## 9. Ключи в `keys/` (не в git)
+
+**Дата:** 2026-10-21
+**Решение:** Ключи хранятся в `keys/` (в `.gitignore`):
+- `keys/esp32_public_key.pem` — публичный RSA ESP32 (для шифрования).
+- `keys/executor_private_key.bin` — приватный secp256k1 Executor (для подписи, raw 32 байта).
+- `keys/executor_pubkey.bin` — публичный secp256k1 Executor (raw 33 байта).
+
+**Обоснование:**
+- Секреты **не** в git.
+- Формат: RSA — PEM (стандарт), secp256k1 — raw (embit).
+- Скрипты в `scripts/`: `export_esp32_pubkey.py` (извлечение из `esp32_private_key.json`), `generate_executor_key.py` (генерация).
+
+**Следствия:**
+- `PacketBuilder` читает ключи из `keys/`.
+- При смене ключей — перегенерировать.
+
+---
+
+## 10. `inputfiles/` = JSON (не `.py`)
+
+**Дата:** 2026-10-21
+**Решение:** `inputfiles/*.json` — программы для ESP32 в формате TUR55 3.2:
+```json
+{
+  "setup": ["led = machine.Pin(2, machine.Pin.OUT)"],
+  "loop_logic": ["led.value(1)", "time.sleep(0.5)"],
+  "custom_data": {"duration_sec": 120}
+}
+```
+
+**Обоснование:**
+- ESP32 (`execution_engine`) исполняет `setup`/`loop_logic` — списки строк.
+- `.py`-файлы **не** принимаются ESP32.
+- `example_led.py` — оставлен как **пример** (человекочитаемый), но **не используется**.
+
+**Следствия:**
+- `configs/ethereum.json::inputfiles.template` = `inputfiles/example_led.json`.
+- `.py` → `.json` конвертер — **позже** (сложно, хрупко).
+
+---
+
+## 11. Delivery — единый интерфейс (`delivery.py`)
+
+**Дата:** 2026-10-21
+**Решение:** Транспорты (`FILE.py`, `MQTT.py`) — отдельные модули. `Layers/Executor/delivery.py::send(packet, config)` — диспетчер по `config["delivery"]["transport"]`:
+- `"file"` → только `FILE.py`.
+- `"mqtt"` → только `MQTT.py`.
+- `"both"` → оба.
+
+**Обоснование:**
+- `main.py::cmd_build` не знает деталей транспорта.
+- Единый интерфейс для `cmd_build` и `cmd_send`.
+- Легко добавить `BLE` / `QR` / `NFC`.
+
+**Следствия:**
+- `Layers/Delivery/FILE.py::save()` — `outputfiles/program.enc`.
+- `Layers/Delivery/MQTT.py::publish()` — `paho-mqtt`.
+- `cmd_build` → `send(packet, config)`.
+
+---
+
+## 12. Тесты (`test/`) — 17 passed
+
+**Дата:** 2026-10-21
+**Решение:** Все тесты — в `test/`. 17 тестов:
+- `test_event_mock.py` (3) — детерминизм, поля.
+- `test_packet_roundtrip.py` (5) — magic, версия, ключ, размер.
+- `test_script_template.py` (5) — позитив/негатив.
+- `test_delivery_file.py` (4) — сохранение в файл.
+
+**Обоснование:**
+- Регрессионный барьер перед приёмкой.
+- `pytest` — стандарт.
+
+**Следствия:**
+- `py -m pytest test/ -v` — 17 passed.
+- `test/conftest.py` — фикстуры (`keys_dir`, `program_led`, `sample_event`, `mock_config`).
+
+---
+
 ## Ссылки
 
 - **TUR55 Standard:** https://github.com/Tabintaban/Protocol_TUR55
 - **ESP32_Python_FUEL** (Layer 4, `DECISIONS_LOG.md` — 26 решений): https://github.com/Tabintaban/ESP32_Python_FUEL
 - **TUR55_Executor:** https://github.com/Tabintaban/TUR55_Executor
+

@@ -108,8 +108,8 @@ py main.py send
 py main.py listen
 ```
 
-> `listen` и `build` работают (мок Ethereum → готовый скрипт с `TUR55_PAYLOAD`).
-> `send` — пока `NotImplementedError` (Delivery — шаг 7).
+> `listen` и `build` работают: `build` собирает пакет TUR55 и сохраняет в `outputfiles/program.enc`.
+> `send` — пока `NotImplementedError` (Delivery — следующий шаг).
 
 ---
 
@@ -129,10 +129,11 @@ py main.py listen
 - Layer 4 (ESP32_Python_FUEL): ~95% TUR55/Bronze, Bronze закрыт. eFuse, Secure boot — Gold уровень.
 - Layer 2 (этот репозиторий):
   - ✅ `listen` — слушатель Ethereum (мок) → JSONL
-  - ✅ `build` — встраивание payload в шаблон → готовый Python-скрипт
-  - ⏳ `send` — Delivery (MQTT + file) — шаг 7
-  - ⏳ шифрование + сборка пакета TUR55 — шаг 6 (открытый вопрос: JSON / скрипт / оба)
-  - ⏳ тесты (`test/`) — шаг 8
+  - ✅ `build` — пакет TUR55 → `outputfiles/program.enc` (RSA-OAEP + AES-256-GCM + ECDSA)
+  - ✅ `Delivery` — FILE (save) + MQTT (publish), диспетчер по `transport`
+  - ✅ Тесты — 17 passed (`py -m pytest test/ -v`)
+  - ⏳ `send` — CLI-команда (сейчас через `build`)
+  - ⏳ Приёмка ESP32 — end-to-end (мигает 2 минуты)
 
 ---
 
