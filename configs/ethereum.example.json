@@ -39,8 +39,7 @@
     "executor_private_key": "keys/executor_private_key.pem"
   },
   "inputfiles": {
-    "template": "inputfiles/example_led.py",
-    "payload_marker": "# @@TUR55_PAYLOAD@@"
+    "template": "inputfiles/example_led.json"
   },
   "logging": {
     "level": "INFO",

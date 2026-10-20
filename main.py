@@ -81,40 +81,37 @@ def load_config(path: Path) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def cmd_build(config: dict[str, Any], verbose: bool) -> int:
-    """build — собрать готовый скрипт для ESP32 (без шифрования и доставки).
-
-    Шаги:
-      1. Получить одно событие ExecutorTriggered из Layers/Event/ethereum.py.
-      2. Прочитать шаблон из config["inputfiles"]["template"].
-      3. Встроить payload в шаблон (Layers/Executor/script_template.py).
-      4. Напечатать готовый скрипт в stdout.
-    """
+    """build — собрать пакет TUR55 (бинарный) и сохранить в outputfiles/."""
     from Layers.Event.ethereum import listen
-    from Layers.Executor.script_template import build_script
+    from Layers.Executor.packet_builder import PacketBuilder
 
     executor = config["executor"]
     if verbose:
         print(f"[build] config: executor={executor.get('name')} version={executor.get('version')}", file=sys.stderr)
 
-    # 1. Одно событие (мок — первое; реальный Ethereum — первое из потока)
+    # 1. Одно событие
     event = next(iter(listen(config, verbose=verbose)))
     if verbose:
         print(f"[build] event: user={event['user_wallet'][:10]}... amount={event['amount']}", file=sys.stderr)
 
-    # 2. Шаблон из inputfiles/
-    template_rel = config["inputfiles"]["template"]
-    template_path = REPO_ROOT / template_rel
-    if not template_path.exists():
-        print(f"[ERROR] Шаблон не найден: {template_path}", file=sys.stderr)
+    # 2. Программа для ESP32
+    program_rel = config["inputfiles"]["template"]
+    program_path = REPO_ROOT / program_rel
+    if not program_path.exists():
+        print(f"[ERROR] Программа не найдена: {program_path}", file=sys.stderr)
         return 1
-    template_text = template_path.read_text(encoding="utf-8")
 
-    # 3. Встроить payload
-    marker = config["inputfiles"]["payload_marker"]
-    script = build_script(template_text, event, marker)
+    # 3. Собрать пакет
+    builder = PacketBuilder(keys_dir=REPO_ROOT / "keys")
+    packet = builder.build_from_event(event, program_path)
 
-    # 4. Напечатать готовый скрипт
-    print(script)
+    # 4. Сохранить
+    output_dir = REPO_ROOT / config["delivery"]["file"]["output_dir"]
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / config["delivery"]["file"]["filename"]
+    output_path.write_bytes(packet)
+
+    print(f"[OK] Packet: {len(packet)} bytes → {output_path.relative_to(REPO_ROOT)}")
     return 0
 
 
