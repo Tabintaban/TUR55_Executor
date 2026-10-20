@@ -81,9 +81,10 @@ def load_config(path: Path) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 def cmd_build(config: dict[str, Any], verbose: bool) -> int:
-    """build — собрать пакет TUR55 (бинарный) и сохранить в outputfiles/."""
+    """build — собрать пакет TUR55 и доставить через Delivery."""
     from Layers.Event.ethereum import listen
     from Layers.Executor.packet_builder import PacketBuilder
+    from Layers.Executor.delivery import send
 
     executor = config["executor"]
     if verbose:
@@ -105,15 +106,15 @@ def cmd_build(config: dict[str, Any], verbose: bool) -> int:
     builder = PacketBuilder(keys_dir=REPO_ROOT / "keys")
     packet = builder.build_from_event(event, program_path)
 
-    # 4. Сохранить
-    output_dir = REPO_ROOT / config["delivery"]["file"]["output_dir"]
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / config["delivery"]["file"]["filename"]
-    output_path.write_bytes(packet)
+    # 4. Доставить через Delivery
+    try:
+        done = send(packet, config)
+    except Exception as e:
+        print(f"[ERROR] Delivery: {e}", file=sys.stderr)
+        return 1
 
-    print(f"[OK] Packet: {len(packet)} bytes → {output_path.relative_to(REPO_ROOT)}")
+    print(f"[OK] Packet: {len(packet)} bytes → transport: {done}")
     return 0
-
 
 def cmd_send(config: dict[str, Any], verbose: bool) -> int:
     """send — доставить пакет через Delivery Layer.

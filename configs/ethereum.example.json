@@ -21,7 +21,7 @@
     }
   },
   "delivery": {
-    "transport": "both",
+    "transport": "file",
     "mqtt": {
       "broker": "broker.hivemq.com",
       "port": 1883,
