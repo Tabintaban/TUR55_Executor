@@ -34,3 +34,6 @@ outputfiles/*.enc
 
 # Логи TUR55_Executor
 logs/
+
+# Keys (секреты)
+keys/
