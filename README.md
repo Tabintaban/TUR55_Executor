@@ -129,11 +129,12 @@ py main.py listen
 - Layer 4 (ESP32_Python_FUEL): ~95% TUR55/Bronze, Bronze закрыт. eFuse, Secure boot — Gold уровень.
 - Layer 2 (этот репозиторий):
   - ✅ `listen` — слушатель Ethereum (мок) → JSONL
-  - ✅ `build` — пакет TUR55 → `outputfiles/program.enc` (RSA-OAEP + AES-256-GCM + ECDSA)
-  - ✅ `Delivery` — FILE (save) + MQTT (publish), диспетчер по `transport`
+  - ✅ `build` — пакет TUR55 → `outputfiles/program.enc` (RSA-OAEP + AES-256-GCM + ECDSA secp256k1)
+  - ✅ Delivery — FILE + MQTT (диспетчер по `transport`)
   - ✅ Тесты — 17 passed (`py -m pytest test/ -v`)
+  - ✅ **MVP принят (21.10.2026)** — end-to-end с ESP32 (лампочка мигает по `custom_data.duration_sec`)
   - ⏳ `send` — CLI-команда (сейчас через `build`)
-  - ⏳ Приёмка ESP32 — end-to-end (мигает 2 минуты)
+  - ⏳ Реальный Ethereum (не мок) — `web3.py` + `rpc_url` + `contract_address`
 
 ---
 

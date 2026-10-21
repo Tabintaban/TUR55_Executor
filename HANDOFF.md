@@ -1,6 +1,6 @@
 ﻿# HANDOFF — TUR55_Executor
 
-**Дата:** 2026-10-21 (обновлено после сессий 19–21.10.2026)
+**Дата:** 2026-10-21 (сессия приёмки MVP, обновлено после приёмки ESP32)
 **Цель:** передать контекст новому диалогу/ассистенту для продолжения работы.
 
 ---
@@ -100,7 +100,7 @@ TUR55_Executor/
 └── README_RU.md
 ```
 
-### Что работает
+### Что работает (MVP принят 21.10.2026)
 
 | Команда | Что делает | Статус |
 |---|---|---|
@@ -108,10 +108,14 @@ TUR55_Executor/
 | `py main.py build` | Событие + программа → пакет TUR55 → `outputfiles/program.enc` | ✅ |
 | `py main.py send` | (TODO) Доставка через Delivery | ⏳ |
 
+**End-to-end (приёмка пройдена 21.10.2026):**
+- Executor собрал пакет (988 байт) → ESP32 получил → расшифровал → проверил подпись → исполнил.
+- **Результат:** `max_iterations=240` (из `custom_data.duration_sec: 120`), `loop iterations: 240`, **лампочка мигала ~4 минуты и выключилась**.
+
 **Реализовано:**
 - `Layers/Event/ethereum.py` — `listen()` (мок + каркас web3.py)
 - `Layers/Executor/script_template.py` — `build_script()` (для модели B, не используется)
-- `Layers/Executor/packet_builder.py` — `PacketBuilder.build_from_event()` (сборка пакета)
+- `Layers/Executor/packet_builder.py` — `PacketBuilder.build_from_event()`, **`max_iterations` из `custom_data.duration_sec`**
 - `Layers/Delivery/FILE.py` — `save()` (сохранение в файл)
 - `Layers/Delivery/MQTT.py` — `publish()` (MQTT)
 - `Layers/Executor/delivery.py` — `send()` (диспетчер по `transport`)
@@ -124,9 +128,11 @@ TUR55_Executor/
 - `test_script_template.py` (5)
 - `test_delivery_file.py` (4)
 
-### Коммиты (13, все запушены в `origin/main`)
+### Коммиты (15, все запушены в `origin/main`)
 
 ```
+0293aa7 packet_builder: max_iterations из custom_data.duration_sec
+0768c5c docs: HANDOFF (этапы 1–8), README (статус), DECISIONS_LOG (+4), inputfiles (JSON)
 93f9fdb test: 17 тестов (event mock, packet, script template, delivery file)
 3373fd8 Delivery: FILE.py + MQTT.py + delivery.py; main.py: cmd_build -> delivery.send; configs: transport=file
 fc1bbd3 main.py: cmd_build -> PacketBuilder (пакет в outputfiles/program.enc); configs: inputfiles.template -> example_led.json

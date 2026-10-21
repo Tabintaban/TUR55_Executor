@@ -230,6 +230,23 @@
 
 ---
 
+## 13. `max_iterations` в пакете (`execution.max_iterations`)
+
+**Дата:** 2026-10-21
+**Решение:** `PacketBuilder` добавляет `max_iterations` в `execution.max_iterations` пакета. Вычисляется из `custom_data.duration_sec` (× 2, т.к. `loop_logic` в `example_led.json` = 1 сек/итерацию).
+
+**Обоснование:**
+- ESP32 `main.main()` жёстко передаёт `max_iterations=5` (до приёмки).
+- Без `max_iterations` в пакете — **лампочка мигает 5 сек** (не 120).
+- С `max_iterations` (из пакета) — ESP32 читает `execution.max_iterations` → 240 итераций → **~240 сек**.
+
+**Следствия:**
+- `Layers/Executor/packet_builder.py` — добавлено поле.
+- `ESP32_Python_FUEL/main.py` — читает `execution.max_iterations` (правка `8f2639a`).
+- **Приёмка 21.10.2026:** `max_iterations=240`, `loop iterations: 240`, **лампочка мигала ~4 минуты и выключилась**.
+
+---
+
 ## Ссылки
 
 - **TUR55 Standard:** https://github.com/Tabintaban/Protocol_TUR55
