@@ -21,9 +21,9 @@
     }
   },
   "delivery": {
-    "transport": "file",
+    "transport": "mqtt",
     "mqtt": {
-      "broker": "broker.hivemq.com",
+      "broker": "broker.emqx.io",
       "port": 1883,
       "topic": "tur55/device/esp32_001",
       "qos": 1,
