@@ -46,6 +46,10 @@ class PacketBuilder:
 
         custom_data = {**program_custom_data, **(event.get("custom_data") or {})}
 
+        # Вычисляем max_iterations из duration_sec (2 итерации = 1 сек)
+        duration_sec = int(custom_data.get("duration_sec") or 120)
+        max_iterations = duration_sec * 2  # 0.5 сек × 2 = 1 сек за итерацию
+
         json_data = {
             "tur55_version": "1.0",
             "command_id": event.get("command_id", "0xauto"),
@@ -55,10 +59,11 @@ class PacketBuilder:
                 "transaction_hash": event.get("transaction_hash", "0x0"),
                 "block_number": event.get("block_number", 0),
             },
-            "execution": {
+             "execution": {
                 "user_wallet": event.get("user_wallet", "0x0"),
                 "amount": event.get("amount", 0),
                 "expires": event.get("expires", 0),
+                "max_iterations": max_iterations,
                 "runtime_limit_ms": 5000,
                 "memory_limit_kb": 25,
                 "permissions": ["gpio", "time"],
