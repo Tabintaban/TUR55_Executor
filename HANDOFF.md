@@ -109,8 +109,10 @@ TUR55_Executor/
 | `py main.py send` | (TODO) Доставка через Delivery | ⏳ |
 
 **End-to-end (приёмка пройдена 21.10.2026):**
-- Executor собрал пакет (988 байт) → ESP32 получил → расшифровал → проверил подпись → исполнил.
+- **FILE:** Executor собрал пакет (988 байт) → ESP32 получил (`mpremote`) → расшифровал → проверил подпись → исполнил.
+- **MQTT:** Executor собрал пакет (988 байт) → `broker.emqx.io` → ESP32 получил → расшифровал → проверил подпись → исполнил.
 - **Результат:** `max_iterations=240` (из `custom_data.duration_sec: 120`), `loop iterations: 240`, **лампочка мигала ~4 минуты и выключилась**.
+- **MQTT-брокер:** `broker.emqx.io` (вместо `broker.hivemq.com` — не доставлял).
 
 **Реализовано:**
 - `Layers/Event/ethereum.py` — `listen()` (мок + каркас web3.py)
@@ -158,7 +160,7 @@ d584010 main.py: cmd_listen -> Layers.Event.ethereum + JSONL
 
 **Варианты доставки:**
 - **FILE:** скопировать `outputfiles/program.enc` на ESP32 (MicroPico / mpremote).
-- **MQTT:** `transport: "mqtt"` (или `"both"`) → пакет публикуется в `broker.hivemq.com` → ESP32 подписан на топик.
+- **MQTT:** `transport: "mqtt"` (или `"both"`) → пакет публикуется в `broker.emqx.io` → ESP32 подписан на топик.
 
 ESP32: `parse_packet` → JSON → `exec(setup)` + `exec(loop_logic)` → **лампочка мигает 2 минуты**.
 
@@ -195,7 +197,7 @@ Layers/Executor/build_packet_cpython.py ← build_packet (RSA-OAEP + AES-GCM + E
 Layers/Executor/delivery.py             ← send (диспетчер)
     │
     ├── Layers/Delivery/FILE.py         ← save → outputfiles/program.enc
-    └── Layers/Delivery/MQTT.py         ← publish → broker.hivemq.com
+    └── Layers/Delivery/MQTT.py         ← publish → broker.emqx.io
     ▼
 ESP32 (Layer 4)
     parse_packet → JSON → exec(setup) + exec(loop_logic)
@@ -235,7 +237,7 @@ ESP32 (Layer 4)
   },
   "delivery": {
     "transport": "file",
-    "mqtt": { "broker": "broker.hivemq.com", "port": 1883, "topic": "tur55/device/esp32_001", "qos": 1, "retain": false },
+    "mqtt": { "broker": "broker.emqx.io", "port": 1883, "topic": "tur55/device/esp32_001", "qos": 1, "retain": false },
     "file": { "output_dir": "outputfiles/", "filename": "program.enc" }
   },
   "keys": {

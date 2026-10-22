@@ -247,6 +247,23 @@
 
 ---
 
+## 14. `broker.emqx.io` вместо `broker.hivemq.com`
+
+**Дата:** 2026-10-22
+**Решение:** MQTT-транспорт использует **`broker.emqx.io`** (порт 1883), а не `broker.hivemq.com`.
+
+**Обоснование:**
+- `broker.hivemq.com` — публичный, но **не доставлял** пакеты (подписчик на компьютере и ESP32 **не получали** `988 bytes`).
+- `broker.emqx.io` — **публичный**, **стабильно доставляет** (проверено 21.10.2026: `GOT: tur55/device/esp32_001 988 bytes`).
+
+**Следствия:**
+- `configs/ethereum.example.json` — `"broker": "broker.emqx.io"`.
+- `configs/ethereum.json` (локальный) — то же.
+- `ESP32_Python_FUEL/secrets.py` — `MQTT_BROKER = "broker.emqx.io"`.
+- **Приёмка 21.10.2026:** MQTT end-to-end (Executor → `broker.emqx.io` → ESP32 → мигание).
+
+---
+
 ## Ссылки
 
 - **TUR55 Standard:** https://github.com/Tabintaban/Protocol_TUR55
