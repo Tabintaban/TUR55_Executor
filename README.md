@@ -31,7 +31,7 @@ Executor — сервер (CPython), который слушает блокче�
 ## Что делает Executor (8 шагов)
 
 1. **Слушает** блокчейн (Ethereum / Solana / Tron).
-2. **Извлекает** событие `ExecutorTriggered(user_wallet, amount, expires, device_id, metadata)`.
+2. **Извлекает** событие `ExecutorTriggered(user_wallet, amount, expires, device_id, metadata, custom_data)`.
 3. **Формирует** JSON-конверт TUR55 (раздел 3.2).
 4. **Встраивает** конверт в Python-скрипт (раздел 3.3).
 5. **Шифрует**: сессионный ключ → RSA-OAEP (публичный ключ ESP32); скрипт → AES-256-GCM.
@@ -51,21 +51,32 @@ TUR55_Executor/
 │   │   ├── solana.py            ← описание
 │   │   └── tron.py              ← описание
 │   ├── Delivery/
-│   │   ├── MQTT.py              ← описание
+│   │   ├── FILE.py              ← save(packet, config) → outputfiles/program.enc
+│   │   ├── MQTT.py              ← publish(packet, config) → broker.emqx.io
 │   │   ├── HTTP_HTTPS.py        ← описание
 │   │   ├── Bluetooth_BLE.py     ← описание
 │   │   ├── LoraWAN.py           ← описание
 │   │   ├── QR-code_NFC.py       ← описание
 │   │   └── SD_USB.py            ← описание
 │   └── Executor/
-│       ├── tur55_packet.py      ← формат пакета TUR55 (build + parse)
-│       └── build_packet_cpython.py  ← сборка пакета (CPython)
+│       ├── tur55_packet.py      ← формат пакета TUR55 (parse)
+│       ├── build_packet_cpython.py  ← build_packet (RSA-OAEP + AES-GCM + ECDSA)
+│       ├── packet_builder.py    ← PacketBuilder.build_from_event() (max_iterations)
+│       ├── delivery.py          ← send(packet, config) — диспетчер
+│       └── script_template.py   ← build_script (не используется)
 ├── configs/
 │   ├── README.md
-│   └── settings.example.json    ← шаблон (settings.json — в .gitignore)
-├── inputfiles/                  ← шаблоны скриптов для ESP32
+│   └── ethereum.example.json    ← шаблон (ethereum.json — в .gitignore)
+├── inputfiles/
+│   ├── README.md
+│   └── example_led.json         ← программа для ESP32 (setup/loop_logic/custom_data)
 ├── outputfiles/                 ← program.enc (физическая доставка)
-├── test/                        ← все тесты только здесь
+├── test/
+│   ├── conftest.py
+│   ├── test_event_mock.py
+│   ├── test_packet_roundtrip.py
+│   ├── test_script_template.py
+│   └── test_delivery_file.py
 ├── main.py                      ← CLI: build / send / listen
 ├── README.md                    ← этот файл
 └── README_RU.md
@@ -85,9 +96,9 @@ TUR55_Executor/
 | Пакет | Назначение | Статус |
 |-------|------------|--------|
 | `web3` | слушатель Ethereum | планируется (шаг 4) |
-| `paho-mqtt` | транспорт MQTT | планируется (шаг 4) |
+| `paho-mqtt` | транспорт MQTT | **используется** (MQTT) |
 | `embit` | ECDSA secp256k1 | **выбран** (не `coincurve` — см. `ERRORS_AND_SOLUTIONS.md` #16) |
-| `cryptography` | RSA-OAEP + AES-256-GCM | планируется |
+| `cryptography` | RSA-OAEP + AES-256-GCM | **используется** (`build_packet_cpython.py`) |
 
 ---
 
@@ -95,8 +106,8 @@ TUR55_Executor/
 
 ```powershell
 # 1. Настройки
-copy configs\settings.example.json configs\settings.json
-# отредактировать settings.json: rpc_url, contract_address, device_id, пути к ключам
+copy configs\ethereum.example.json configs\ethereum.json
+# отредактировать ethereum.json: rpc_url, contract_address, device_id, пути к ключам
 
 # 2. Сборка пакета TUR55
 py main.py build
@@ -109,7 +120,8 @@ py main.py listen
 ```
 
 > `listen` и `build` работают: `build` собирает пакет TUR55 и сохраняет в `outputfiles/program.enc`.
-> `send` — пока `NotImplementedError` (Delivery — следующий шаг).
+> `send` — CLI-команда (сейчас через `build` → `delivery.send`).
+> `transport: "file"` / `"mqtt"` / `"both"` в `configs/ethereum.json`.
 
 ---
 
