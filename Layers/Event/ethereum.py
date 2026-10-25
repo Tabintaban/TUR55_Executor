@@ -102,35 +102,89 @@ def _listen_mock(config: dict[str, Any], verbose: bool) -> Iterator[dict[str, An
 # ---------------------------------------------------------------------------
 
 def _listen_web3(config: dict[str, Any], verbose: bool) -> Iterator[dict[str, Any]]:
-    """Слушатель Ethereum через web3.py (каркас — реализация позже).
+    """Слушатель Ethereum через web3.py (TUR55 v1.0, раздел 3.1).
 
-    TODO (следующий подшаг):
-      1. Загрузить ABI контракта TUR55 (config["event"]["abi_path"], пока нет в конфиге).
-      2. from web3 import Web3
-         web3 = Web3(Web3.HTTPProvider(config["event"]["rpc_url"]))
-         contract = web3.eth.contract(
-             address=config["event"]["contract_address"], abi=abi
-         )
-      3. event_filter = contract.events.ExecutorTriggered.create_filter(from_block="latest")
-      4. В цикле:
-             for entry in event_filter.get_new_entries():
-                 yield {
-                     "user_wallet": entry["args"]["user_wallet"],
-                     "amount":      entry["args"]["amount"],
-                     "expires":     entry["args"]["expires"],
-                     "device_id":   entry["args"]["device_id"],
-                     "metadata":    entry["args"]["metadata"],
-                 }
-             time.sleep(config["event"]["poll_interval_sec"])
+    Маппинг полей события:
+        userWallet (address)  -> user_wallet (str)
+        amount     (uint256)  -> amount      (int)
+        expires    (uint256)  -> expires     (int)
+        deviceId   (bytes32)  -> device_id   (str, decode + rstrip)
+        metadata   (bytes)    -> metadata    (dict, json.loads)
+
+    custom_data из события НЕ читается — PacketBuilder берёт его
+    из inputfiles/example_led.json (решение №18, DECISIONS_LOG.md).
     """
-    try:
-        import web3  # noqa: F401
-    except ImportError as e:
-        raise ImportError(
-            "web3.py не установлен. Установите: py -m pip install web3"
-        ) from e
+    import json
+    import time
 
-    raise NotImplementedError(
-        "web3.py: реализация — следующий подшаг "
-        "(ABI, контракт, event_filter; см. TODO в docstring)"
+    try:
+        from web3 import Web3
+    except ImportError:
+        raise RuntimeError(
+            "web3.py не установлен. Установите: py -m pip install web3"
+        )
+
+    ev_cfg = config["event"]
+    rpc_url = ev_cfg["rpc_url"]
+    contract_address = ev_cfg["contract_address"]
+    abi_path = ev_cfg["abi_path"]
+    poll_interval = ev_cfg.get("poll_interval_sec", 5)
+
+    w3 = Web3(Web3.HTTPProvider(rpc_url))
+    if not w3.is_connected():
+        raise RuntimeError(f"web3.py: не удалось подключиться к {rpc_url}")
+
+    with open(abi_path, "r", encoding="utf-8") as f:
+        abi = json.load(f)
+
+    contract = w3.eth.contract(
+        address=Web3.to_checksum_address(contract_address),
+        abi=abi,
     )
+
+    # Начинаем с текущего блока, чтобы не тянуть всю историю Sepolia
+    start_block = w3.eth.block_number
+    event_filter = contract.events.ExecutorTriggered.create_filter(
+        fromBlock=start_block
+    )
+
+    if verbose:
+        print(f"[web3] connected: {rpc_url}")
+        print(f"[web3] contract:  {contract_address}")
+        print(f"[web3] fromBlock: {start_block}")
+
+    while True:
+        for entry in event_filter.get_new_entries():
+            args = entry["args"]
+            raw_device_id = args["deviceId"]
+            raw_metadata = args["metadata"]
+
+            # bytes32 -> str (rstrip нулей паддинга)
+            device_id = raw_device_id.decode("utf-8").rstrip("\x00")
+
+            # bytes -> dict (JSON)
+            try:
+                metadata = json.loads(raw_metadata.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                if verbose:
+                    print(f"[web3] skip event: metadata not JSON ({e})")
+                continue
+
+            event = {
+                "user_wallet": args["userWallet"],
+                "amount":      args["amount"],
+                "expires":     args["expires"],
+                "device_id":   device_id,
+                "metadata":    metadata,
+                # custom_data отсутствует — PacketBuilder возьмёт из программы
+            }
+
+            if verbose:
+                print(
+                    f"[web3] event: user={event['user_wallet'][:10]}... "
+                    f"amount={event['amount']} expires={event['expires']} "
+                    f"device={event['device_id']}"
+                )
+            yield event
+
+        time.sleep(poll_interval)

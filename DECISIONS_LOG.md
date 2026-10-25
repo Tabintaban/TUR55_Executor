@@ -264,6 +264,52 @@
 
 ---
 
+## 18. Событие ExecutorTriggered — строго по стандарту TUR55 v1.0 (3.1)
+
+**Дата:** 2026-10-25
+**Контекст:** переход с мока на реальный Ethereum (Sepolia). Стандарт TUR55 v1.0 (раздел 3.1) фиксирует типы полей события иначе, чем мок.
+
+**Решение:** контракт `Tur55Trigger` пишется строго по стандарту:
+```solidity
+event ExecutorTriggered(
+    address indexed userWallet,
+    uint256 amount,
+    uint256 expires,
+    bytes32 deviceId,
+    bytes   metadata
+);
+```
+
+`custom_data` в событии отсутствует (стандарт его не определяет). Прикладные данные берутся из `inputfiles/example_led.json` — `packet_builder.py:47` уже мержит `program_custom_data` и `event.get("custom_data") or {}`.
+
+**Маппинг в `_listen_web3`:**
+| Стандарт | Python (мок/ESP32) | Преобразование |
+|---|---|---|
+| `userWallet` (address) | `user_wallet` (str) | прямое |
+| `amount` (uint256) | `amount` (int) | прямое |
+| `expires` (uint256) | `expires` (int) | прямое |
+| `deviceId` (bytes32) | `device_id` (str) | `decode('utf-8').rstrip('\x00')` |
+| `metadata` (bytes) | `metadata` (dict) | `json.loads(decode('utf-8'))` |
+
+**Выбранные варианты:** A1 (имена по стандарту), B1 (deviceId как bytes32), C2 (custom_data из программы), D1 (metadata как bytes).
+
+**Альтернативы, которые отклонены:**
+- **A2** (snake_case в контракте) — нарушает стандарт v1.0, раздел 12 («изменения не допускаются»).
+- **B2** (`deviceId` как `string`) — отступление от стандарта; для длинных ID — новая версия стандарта (v1.1), не самовольное изменение.
+- **C1** (`customData` в событии) — нарушает стандарт, требует правки `PacketBuilder`.
+- **C3** (`custom_data` внутри `metadata`) — требует правки `PacketBuilder`.
+- **D2** (`metadata` как `string`) — отступление от стандарта.
+
+**Последствия:**
+- `Layers/Event/ethereum.py::_listen_web3` — реализован.
+- `Layers/Event/abi/Tur55Trigger.json` — новый файл.
+- `configs/ethereum.json` — `use_mock: false`, `rpc_url`, `contract_address`, `abi_path`.
+- `packet_builder.py`, `program_loader.py` (ESP32), 17 тестов — **не тронуты**.
+
+
+
+---
+
 ## Ссылки
 
 - **TUR55 Standard:** https://github.com/Tabintaban/Protocol_TUR55
