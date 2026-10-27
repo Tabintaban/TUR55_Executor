@@ -1,19 +1,19 @@
 ﻿#!/usr/bin/env python3
-"""TUR55_Executor — CLI-каркас (Layer 2, Executor).
+"""TUR55_Executor — CLI skeleton (Layer 2, Executor).
 
-Подкоманды:
-    build  — собрать пакет TUR55 из события (шаг 4)
-    send   — доставить пакет через Delivery Layer (шаг 4)
-    listen — слушать блокчейн (мок / web3.py) (шаг 4)
+Subcommands:
+    build  — build a TUR55 packet from an event
+    send   — deliver the packet via Delivery Layer
+    listen — listen to the blockchain (mock / web3.py)
 
-Запуск (Windows):
+Usage (Windows):
     py main.py build
     py main.py send
     py main.py listen
     py main.py --help
 
-Настройки: configs/settings.json (по умолчанию).
-Шаблон: configs/settings.example.json.
+Config: configs/ethereum.json (default).
+Template: configs/ethereum.example.json.
 """
 
 from __future__ import annotations
@@ -41,40 +41,38 @@ REQUIRED_SECTIONS = ("executor", "event", "delivery", "keys")
 # ---------------------------------------------------------------------------
 
 def load_config(path: Path) -> dict[str, Any]:
-    """Загрузить settings.json. Поведение (а): при отсутствии — понятная ошибка + exit 1."""
+    """Load config. Behavior (a): if missing — clear error + exit 1."""
     if not path.exists():
-        print(f"[ERROR] Конфиг не найден: {path}", file=sys.stderr)
-        print("[HINT]  Скопируйте шаблон:", file=sys.stderr)
+        print(f"[ERROR] Config not found: {path}", file=sys.stderr)
+        print("[HINT]  Copy the template:", file=sys.stderr)
         print(f"        copy {EXAMPLE_CONFIG.relative_to(REPO_ROOT)} {path.relative_to(REPO_ROOT)}", file=sys.stderr)
-        print(f"        затем отредактируйте {path.relative_to(REPO_ROOT)} (rpc_url, contract_address, device_id, пути к ключам).", file=sys.stderr)
+        print(f"        then edit {path.relative_to(REPO_ROOT)} (rpc_url, contract_address, device_id, key paths).", file=sys.stderr)
         sys.exit(1)
 
     try:
         with path.open("r", encoding="utf-8-sig") as f:
             config = json.load(f)
     except json.JSONDecodeError as e:
-        print(f"[ERROR] Некорректный JSON в {path}: {e}", file=sys.stderr)
+        print(f"[ERROR] Invalid JSON in {path}: {e}", file=sys.stderr)
         sys.exit(1)
 
     missing = [s for s in REQUIRED_SECTIONS if s not in config]
     if missing:
-        print(f"[ERROR] В {path} отсутствуют обязательные секции: {missing}", file=sys.stderr)
+        print(f"[ERROR] Missing required sections in {path}: {missing}", file=sys.stderr)
         sys.exit(1)
 
-    # MVP: имя файла конфига должно соответствовать event.blockchain.
-    # "ethereum.json" / "ethereum.example.json" → ожидаем "ethereum".
+    # MVP: filename must match event.blockchain.
     expected_blockchain = path.name.split(".")[0]
     actual_blockchain = config.get("event", {}).get("blockchain")
     if actual_blockchain != expected_blockchain:
         print(
-            f"[ERROR] Конфиг {path.name}: event.blockchain={actual_blockchain!r}, "
-            f"ожидалось {expected_blockchain!r} (по имени файла).",
+            f"[ERROR] Config {path.name}: event.blockchain={actual_blockchain!r}, "
+            f"expected {expected_blockchain!r} (based on filename).",
             file=sys.stderr,
         )
         sys.exit(1)
 
     return config
-
 
 # ---------------------------------------------------------------------------
 # Подкоманды (каркас; реализация — шаг 4)
@@ -99,7 +97,7 @@ def cmd_build(config: dict[str, Any], verbose: bool) -> int:
     program_rel = config["inputfiles"]["template"]
     program_path = REPO_ROOT / program_rel
     if not program_path.exists():
-        print(f"[ERROR] Программа не найдена: {program_path}", file=sys.stderr)
+        print(f"[ERROR] Program not found: {program_path}", file=sys.stderr)
         return 1
 
     # 3. Собрать пакет
@@ -113,7 +111,7 @@ def cmd_build(config: dict[str, Any], verbose: bool) -> int:
         print(f"[ERROR] Delivery: {e}", file=sys.stderr)
         return 1
 
-    print(f"[OK] Packet: {len(packet)} bytes → transport: {done}")
+    print(f"[OK] Packet: {len(packet)} bytes -> transport: {done}")
     return 0
 
 def cmd_send(config: dict[str, Any], verbose: bool) -> int:
@@ -125,7 +123,7 @@ def cmd_send(config: dict[str, Any], verbose: bool) -> int:
     transport = config["delivery"].get("transport", "?")
     if verbose:
         print(f"[send] transport: {transport}", file=sys.stderr)
-    raise NotImplementedError("send: реализация — шаг 4 (Layers/Executor/delivery.py)")
+    raise NotImplementedError("send: implementation — step 4 (Layers/Executor/delivery.py)")
 
 
 def cmd_listen(config: dict[str, Any], verbose: bool) -> int:
@@ -159,12 +157,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--config",
         type=Path,
         default=DEFAULT_CONFIG,
-        help=f"путь к settings.json (по умолчанию: {DEFAULT_CONFIG.relative_to(REPO_ROOT)})",
+        help=f"path to config (default: {DEFAULT_CONFIG.relative_to(REPO_ROOT)})",
     )
     parser.add_argument(
         "--verbose", "-v",
         action="store_true",
-        help="подробный вывод (в stderr)",
+        help="verbose output (to stderr)",
     )
 
     sub = parser.add_subparsers(dest="command", required=True)
@@ -175,12 +173,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--verbose", "-v",
         action="store_true",
         default=argparse.SUPPRESS,   # не перетирать значение от родителя
-        help="подробный вывод (в stderr)",
+        help="verbose output (to stderr)",
     )
 
-    sub.add_parser("build",  parents=[common], help="собрать пакет TUR55 из события (шаг 4)")
-    sub.add_parser("send",   parents=[common], help="доставить пакет через Delivery Layer (шаг 4)")
-    sub.add_parser("listen", parents=[common], help="слушать блокчейн (мок / web3.py) (шаг 4)")
+    sub.add_parser("build",  parents=[common], help="build a TUR55 packet from an event")
+    sub.add_parser("send",   parents=[common], help="deliver the packet via Delivery Layer")
+    sub.add_parser("listen", parents=[common], help="listen to the blockchain (mock / web3.py)")
 
     return parser
 
