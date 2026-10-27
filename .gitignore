@@ -27,6 +27,7 @@ configs/ethereum.json
 *.key
 *.pem
 secrets.py
+send_test.py
 
 # TUR55
 inputfiles/*.enc

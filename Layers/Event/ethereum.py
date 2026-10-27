@@ -145,7 +145,7 @@ def _listen_web3(config: dict[str, Any], verbose: bool) -> Iterator[dict[str, An
     # Начинаем с текущего блока, чтобы не тянуть всю историю Sepolia
     start_block = w3.eth.block_number
     event_filter = contract.events.ExecutorTriggered.create_filter(
-        fromBlock=start_block
+        from_block=start_block
     )
 
     if verbose:
