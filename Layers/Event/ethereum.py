@@ -142,49 +142,84 @@ def _listen_web3(config: dict[str, Any], verbose: bool) -> Iterator[dict[str, An
         abi=abi,
     )
 
-    # Начинаем с текущего блока, чтобы не тянуть всю историю Sepolia
-    start_block = w3.eth.block_number
-    event_filter = contract.events.ExecutorTriggered.create_filter(
-        from_block=start_block
-    )
+    # Запоминаем блок, с которого начинаем (строго после текущего)
+    # Это ключевой момент: мы хотим слушать только НОВЫЕ блоки.
+    # Вместо ручного отслеживания start_block используем фильтр новых блоков
+    block_filter = w3.eth.filter('latest')
 
     if verbose:
         print(f"[web3] connected: {rpc_url}")
         print(f"[web3] contract:  {contract_address}")
-        print(f"[web3] fromBlock: {start_block}")
+        print(f"[web3] waiting for new blocks...")
 
     while True:
-        for entry in event_filter.get_new_entries():
-            args = entry["args"]
-            raw_device_id = args["deviceId"]
-            raw_metadata = args["metadata"]
+        try:
+            # Получаем хэши только что появившихся блоков
+            new_block_hashes = block_filter.get_new_entries()
+            
+            for block_hash in new_block_hashes:
+                # --- ГЛАВНЫЙ ФИКС: Запрашиваем логи по ХЭШУ, а не по номеру ---
+                # Это гарантирует, что узел не ответит ошибкой "block range extends beyond".
+                logs = []
+                max_retries = 5
+                for attempt in range(max_retries):
+                    try:
+                        logs = contract.events.ExecutorTriggered.get_logs(
+                            block_hash=block_hash
+                        )
+                        break  # Успех, выходим из цикла попыток
+                    except Exception as e:
+                        if "block range" in str(e) or "invalid" in str(e):
+                            if verbose:
+                                print(f"[web3] block {block_hash.hex()} not ready yet (attempt {attempt+1}/{max_retries}), waiting...")
+                            time.sleep(2)
+                        else:
+                            raise e
+                else:
+                    # Если все 5 попыток провалились, пропускаем блок
+                    if verbose:
+                        print(f"[web3] failed to get logs for block {block_hash.hex()}")
+                    continue
+                # -----------------------------------------------------------------
+                
+                for entry in logs:
+                    args = entry["args"]
+                    # ... (дальше ваш код обработки userWallet, deviceId и т.д. остается без изменений) ...
+                
+                for entry in logs:
+                    args = entry["args"]
+                    raw_device_id = args["deviceId"]
+                    raw_metadata = args["metadata"]
 
-            # bytes32 -> str (rstrip нулей паддинга)
-            device_id = raw_device_id.decode("utf-8").rstrip("\x00")
+                    # bytes32 -> str (rstrip нулей паддинга)
+                    device_id = raw_device_id.decode("utf-8").rstrip("\x00")
 
-            # bytes -> dict (JSON)
-            try:
-                metadata = json.loads(raw_metadata.decode("utf-8"))
-            except (UnicodeDecodeError, json.JSONDecodeError) as e:
-                if verbose:
-                    print(f"[web3] skip event: metadata not JSON ({e})")
-                continue
+                    # bytes -> dict (JSON)
+                    try:
+                        metadata = json.loads(raw_metadata.decode("utf-8"))
+                    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+                        if verbose:
+                            print(f"[web3] skip event: metadata not JSON ({e})")
+                        continue
 
-            event = {
-                "user_wallet": args["userWallet"],
-                "amount":      args["amount"],
-                "expires":     args["expires"],
-                "device_id":   device_id,
-                "metadata":    metadata,
-                # custom_data отсутствует — PacketBuilder возьмёт из программы
-            }
+                    event = {
+                        "user_wallet": args["userWallet"],
+                        "amount":      args["amount"],
+                        "expires":     args["expires"],
+                        "device_id":   device_id,
+                        "metadata":    metadata,
+                    }
 
+                    if verbose:
+                        print(
+                            f"[web3] event: user={event['user_wallet'][:10]}... "
+                            f"amount={event['amount']} expires={event['expires']} "
+                            f"device={event['device_id']}"
+                        )
+                    yield event
+
+        except Exception as e:
             if verbose:
-                print(
-                    f"[web3] event: user={event['user_wallet'][:10]}... "
-                    f"amount={event['amount']} expires={event['expires']} "
-                    f"device={event['device_id']}"
-                )
-            yield event
+                print(f"[web3] error while processing new block: {e}")
 
         time.sleep(poll_interval)
