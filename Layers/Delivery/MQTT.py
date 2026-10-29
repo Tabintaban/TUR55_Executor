@@ -27,5 +27,8 @@ def publish(packet_bytes: bytes, config: dict[str, Any]) -> None:
 
     client = mqtt.Client()
     client.connect(broker, port, keepalive=60)
-    client.publish(topic, packet_bytes, qos=qos, retain=retain)
+    client.loop_start()  # Запускаем фоновый цикл для обработки сети
+    info = client.publish(topic, packet_bytes, qos=qos, retain=retain)
+    info.wait_for_publish()  # ЖДЕМ, пока пакет реально уйдет в брокер
+    client.loop_stop()
     client.disconnect()
